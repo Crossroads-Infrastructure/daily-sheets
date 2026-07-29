@@ -242,7 +242,7 @@ const SEED = {
   pin: '2468'
 };
 
-let CFG=null, SHEETS=[], DRAFT=null, QUEUE=[], ME=null, EP='', TAB='entry';
+let CFG=null, SHEETS=[], DRAFT=null, QUEUE=[], ME=null, EP='https://script.google.com/macros/s/AKfycbwvzMYb1a1xwEw0VyzBVvpkmMh2rx-o6fx5TdKfR-OZ1r9KOjn03DpPcU8K3yILOube/exec', TAB='entry';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -279,7 +279,7 @@ function blankSheet(){
 (async function(){
   CFG = await load(K.cfg, null); if(!CFG) { CFG = structuredClone(SEED); await put(K.cfg, CFG); }
   SHEETS = await load(K.sheets, []); QUEUE = await load(K.queue, []);
-  ME = await load(K.me, null); EP = await load(K.ep, '');
+  ME = await load(K.me, null);
   DRAFT = await load(K.draft, null);
   $('#btn-save').addEventListener('click', submit);
   $('#btn-clear').addEventListener('click', async () => {
