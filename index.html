@@ -330,7 +330,7 @@ function signIn(){
    ========================================================================== */
 function entry(){
   const s=DRAFT, j=job(s.jobNo);
-  const codes = s.codes.filter(c => j.codes.includes(c));
+  const codes = s.codes;
   const men = roster(s).map(emp);
   const base = myCrew().map(e=>e.n);
 
