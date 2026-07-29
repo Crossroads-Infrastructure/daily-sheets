@@ -2,7 +2,7 @@
 <style>
   *,*::before,*::after{box-sizing:border-box}
   :root{--ink:#14181c;--ink2:#4a5763;--line:#ccd4da;--soft:#e6ebef;--paper:#fff;--field:#eff3f6;
-    --steel:#1d262e;--hivis:#d6e800;--alert:#b3400c;--pad:14px}
+    --steel:#1a4a6b;--hivis:#2a9fd6;--alert:#b3400c;--pad:14px}
   html{-webkit-text-size-adjust:100%}
   body{margin:0;background:var(--field);color:var(--ink);font-size:16px;line-height:1.45;
     font-family:ui-sans-serif,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -18,7 +18,7 @@
   nav{display:flex;gap:2px;margin-left:auto;background:#111a21;border-radius:9px;padding:3px}
   nav button{appearance:none;border:0;background:transparent;color:#a9b8c4;font:inherit;font-size:14px;
     font-weight:600;padding:8px 13px;border-radius:7px;cursor:pointer;min-height:40px}
-  nav button[aria-current="true"]{background:var(--hivis);color:#14181c}
+  nav button[aria-current="true"]{background:var(--hivis);color:#fff}
 
   .card{background:var(--paper);border:1px solid var(--line);border-radius:11px;margin-top:13px;overflow:hidden}
   .card>.head{display:flex;align-items:center;gap:10px;padding:11px var(--pad);border-bottom:1px solid var(--soft);background:#fbfcfd}
@@ -37,7 +37,7 @@
   .btn{appearance:none;font:inherit;font-weight:600;border-radius:8px;padding:11px 16px;cursor:pointer;
     border:1px solid var(--steel);background:var(--steel);color:#fff;min-height:46px}
   .btn.ghost{background:var(--paper);color:var(--ink);border-color:var(--line)}
-  .btn.go{background:var(--hivis);border-color:#b9c900;color:#14181c}
+  .btn.go{background:var(--hivis);border-color:#1a7fb0;color:#fff}
   .btn.danger{background:var(--paper);border-color:#e0bcae;color:var(--alert)}
   .mini{appearance:none;border:1px solid var(--line);background:var(--paper);border-radius:7px;
     font:inherit;font-size:13px;padding:7px 11px;cursor:pointer;color:var(--ink2);min-height:38px}
@@ -46,10 +46,10 @@
   .chips{display:flex;flex-wrap:wrap;gap:8px}
   .chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;
     padding:8px 13px;background:var(--paper);cursor:pointer;font-size:14px;min-height:40px;user-select:none}
-  .chip.on{border-color:#b9c900;background:var(--hivis);font-weight:600}
+  .chip.on{border-color:#1a7fb0;background:var(--hivis);color:#fff;font-weight:600}
   .chip b{font-variant-numeric:tabular-nums}
   .chip small{color:var(--ink2);font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .chip.on small{color:#3f4a12}
+  .chip.on small{color:#d0eaf7}
   .chip.flat{cursor:default;background:var(--field);border-color:var(--soft);font-size:13px;min-height:0;padding:4px 10px}
 
   .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
@@ -117,7 +117,7 @@
 </style>
 
 <header id="hdr" hidden><div class="bar">
-  <div class="mark"><b>Daily Sheets</b><span id="hdr-sub"></span></div><nav id="nav"></nav>
+  <div class="mark"><span style="font-size:13px;font-weight:700;letter-spacing:.05em;color:#fff">CROSSROADS <span style="color:#5bc8f5">INFRASTRUCTURE</span></span><span id="hdr-sub" style="display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#8fa0ae"></span></div><nav id="nav"></nav>
 </div></header>
 
 <div class="wrap"><main id="view"></main></div>
@@ -561,7 +561,7 @@ async function submit(){
 /* ==========================================================================
    2. Dashboard
    ========================================================================== */
-let F={jobNo:'',from:'',to:'',crew:''};
+const _wd=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};const _ws=()=>{const d=new Date();d.setDate(d.getDate()-d.getDay());return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};let F={jobNo:'',from:_ws(),to:_wd(),crew:''};
 function dash(){
   const rows=SHEETS.filter(s=>(!F.jobNo||s.jobNo===F.jobNo)&&(!F.from||s.date>=F.from)
     &&(!F.to||s.date<=F.to)&&(!F.crew||s.crewId===F.crew));
