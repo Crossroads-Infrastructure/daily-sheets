@@ -297,7 +297,7 @@ function render(){
   $('#hdr-sub').textContent = crewOf(ME.id).name;
   const tabs=[['entry','Daily sheet'],['dash','Dashboard']];
   if(isOffice()) tabs.push(['setup','Setup']);
-  tabs.push(['out','Sign out']);
+  tabs.push(['refresh','Refresh']);tabs.push(['out','Sign out']);
   $('#nav').innerHTML = tabs.map(([k,l])=>`<button data-tab="${k}" aria-current="${k===TAB}">${l}</button>`).join('');
   $('#nav').querySelectorAll('button').forEach(b=>b.addEventListener('click', async ()=>{
     if(b.dataset.tab==='out'){ ME=null; await put(K.me,null); TAB='entry'; return render(); }
