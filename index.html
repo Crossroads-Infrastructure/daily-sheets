@@ -540,7 +540,7 @@ function recalc(){
 function flatten(s){
   const j=job(s.jobNo), out=[];
   for(const [en,row] of Object.entries(s.hours||{}))
-    for(const [c,v] of Object.entries(row)) if(num(v)){
+    for(const [c,v] of Object.entries(row)) if(v!=null && v!==''){
       const i=codeInfo(c);
       out.push({date:s.date, jobNo:s.jobNo, jobName:j.name, foreman:s.foreman, empNo:en,
         empName:emp(en).name, costCode:c, codeDesc:i.desc, hours:num(v)});
@@ -591,7 +591,14 @@ async function submit(){
   const s=DRAFT;
   if(!s.jobNo||!s.date) return status('Pick a job and a date first','bad');
   if(!s.codes.length)   return status('Pick at least one cost code','bad');
-  if(sheetHours(s)===0 && !confirm('No hours entered. Submit anyway?')) return;
+  const missing = roster(s).filter(n=>{
+    const row = s.hours[n]||{};
+    return !s.codes.some(c=>row[c]!=null && row[c]!=='');
+  });
+  if(missing.length){
+    const names = missing.map(n=>emp(n).name).join(', ');
+    return status(`Enter hours (or 0) for: ${names}`,'bad');
+  }
   if(SHEETS.some(x=>x.jobNo===s.jobNo&&x.date===s.date&&x.foreman===s.foreman)
      && !confirm(`You already submitted a sheet for job ${s.jobNo} on ${fmtDate(s.date)}. Submit another?`)) return;
   if(!confirm(`Submit this sheet?\n\n${job(s.jobNo).name}\n${fmtDate(s.date)}\n${sheetHours(s)} labor hours\n\nThis can\u2019t be undone from the app.`)) return;
@@ -703,7 +710,7 @@ function dash(){
 function openSheet(id){
   const s=SHEETS.find(x=>x.id===id); if(!s) return;
   const j=job(s.jobNo), codes=s.codes||[];
-  const crew=Object.entries(s.hours||{}).filter(([,r])=>Object.values(r).some(v=>num(v)));
+  const crew=Object.entries(s.hours||{}).filter(([,r])=>Object.values(r).some(v=>v!=null&&v!==''));
   $('#dlg-t').textContent=`${s.jobNo} — ${fmtDate(s.date)}`;
   $('#dlg-b').innerHTML=`
     <p style="margin:0 0 12px" class="muted">${esc(j.name)} · ${esc(s.foreman)}${s.weather?' · '+esc(s.weather):''}</p>
