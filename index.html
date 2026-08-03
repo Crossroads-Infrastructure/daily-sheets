@@ -1,4 +1,3 @@
-
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>
   *,*::before,*::after{box-sizing:border-box}
@@ -236,8 +235,8 @@ const SEED = {
     'Ford F550','Ford F450','Ford F350','Ford F250 Diesel','Ford F150 (2016)','Ford F150 (2015)',
     'Ford F750 Dump','Ford F750 Flatbed','Chevy Silverado','Ramex'].map(name => ({name, active:true})),
   crews: [
-    {id:'rob',   name:'Rob',            key:'Rob'},
-    {id:'chris', name:'Chris',          key:'Chris'},
+    {id:'rob',   name:'Rob',            key:'Rob',   pin:'1111', foremanId:'78'},
+    {id:'chris', name:'Chris',          key:'Chris', pin:'2222', foremanId:'77'},
     {id:'labor', name:'Labor for Hire', key:'Labor', office:true}
   ],
   pin: '2468'
@@ -253,12 +252,9 @@ const DOW=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday
 const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
 function fmtDate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number);
   return `${String(m).padStart(2,'0')}/${String(d).padStart(2,'0')}/${y} ${DOW[new Date(y,m-1,d).getDay()]}`; }
+function dayOfWeek(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-').map(Number); return DOW[new Date(y,m-1,d).getDay()]; }
 const job = no => CFG.jobs.find(j=>j.no===no) || CFG.jobs[0];
-const foremanCrew = s => { const c = crewOf(s&&s.crewId || (ME&&ME.id)); return (c && !c.office) ? c : null; };
-const emp = (n,s) => CFG.employees.find(e=>e.n===n) || (() => {
-    const fc = foremanCrew(s);
-    return fc && n===fc.id ? {n:fc.id, name:fc.name, crew:fc.key, foreman:true} : {n, name:'#'+n, crew:''};
-  })();
+const emp = n => CFG.employees.find(e=>e.n===n) || {n, name:'#'+n, crew:''};
 const crewOf = id => CFG.crews.find(c=>c.id===id);
 const activeJobs = () => CFG.jobs.filter(j=>j.active);
 const codeInfo = c => { const x = CFG.codes[c]; return {code:c, desc:x?x[0]:'', unit:x?x[1]:''}; };
@@ -271,11 +267,11 @@ function roster(s){
   const base = myCrew().map(e=>e.n).filter(n=>!removed.includes(n));
   const extra = (s.extra||[]).filter(n=>!base.includes(n) && !removed.includes(n));
   const full = base.concat(extra);
-  const fc = foremanCrew(s);
-  if(fc && !removed.includes(fc.id)){
-    const i = full.indexOf(fc.id);
+  const c = crewOf(s.crewId||(ME&&ME.id));
+  if(c && c.foremanId){
+    const i = full.indexOf(c.foremanId);
     if(i>0) full.splice(i,1);
-    if(i!==0) full.unshift(fc.id);
+    if(i!==0 && full.length) full.unshift(c.foremanId);
   }
   return full;
 }
@@ -332,7 +328,8 @@ function signIn(){
   </div>`;
   document.querySelectorAll('[data-c]').forEach(b=>b.addEventListener('click', async ()=>{
     const c = crewOf(b.dataset.c);
-    if(c.office && prompt('Office PIN') !== CFG.pin) return alert('That PIN is not right.');
+    const need = c.office ? CFG.pin : c.pin;
+    if(need && prompt(`PIN for ${c.name}`) !== need) return alert('That PIN is not right.');
     ME = {id:c.id, office:!!c.office}; await put(K.me, ME);
     DRAFT.foreman = c.name; DRAFT.crewId = c.id; await put(K.draft, DRAFT);
     render();
@@ -345,8 +342,9 @@ function signIn(){
 function entry(){
   const s=DRAFT, j=job(s.jobNo);
   const codes = s.codes;
-  const men = roster(s).map(n=>emp(n,s));
+  const men = roster(s).map(emp);
   const base = myCrew().map(e=>e.n);
+  const c = crewOf(s.crewId||(ME&&ME.id));
 
   $('#view').innerHTML = `
   <section class="card">
@@ -379,10 +377,11 @@ function entry(){
         <th class="tot">Total</th><th></th></tr></thead>
       <tbody>${men.map(e=>{
         const row=s.hours[e.n]||{}, t=r2(codes.reduce((a,c)=>a+num(row[c]),0));
-        const borrowed = !base.includes(e.n) && !e.foreman;
+        const isForeman = c && c.foremanId===e.n;
+        const borrowed = !base.includes(e.n) && !isForeman;
         return `<tr data-emp="${e.n}" class="${t?'':'zero'}">
           <td class="stick"><div class="who"><b>${esc(e.n)}</b><span>${esc(e.name)}</span>
-            ${e.foreman?`<span class="bor">FOREMAN</span>`:''}${borrowed?`<span class="bor">${esc(e.crew||'ADDED')}</span>`:''}</div></td>
+            ${isForeman?`<span class="bor">FOREMAN</span>`:''}${borrowed?`<span class="bor">${esc(e.crew||'ADDED')}</span>`:''}</div></td>
           ${codes.map(c=>`<td><input inputmode="decimal" data-hemp="${e.n}" data-hcode="${esc(c)}"
             value="${row[c]!=null&&row[c]!==''?esc(row[c]):''}" aria-label="${esc(e.name)} ${esc(c)}"></td>`).join('')}
           <td class="tot" data-rt="${e.n}">${t||''}</td>
@@ -450,7 +449,7 @@ function entry(){
 
   document.querySelectorAll('[data-mand]').forEach(el=>el.addEventListener('click', async ()=>{
     const n = el.dataset.mand;
-    if(!confirm(`Remove ${emp(n,DRAFT).name} from today\u2019s sheet? Their hours entered today will be cleared.`)) return;
+    if(!confirm(`Remove ${emp(n).name} from today\u2019s sheet? Their hours entered today will be cleared.`)) return;
     delete DRAFT.hours[n];
     if(DRAFT.extra) DRAFT.extra = DRAFT.extra.filter(x=>x!==n);
     DRAFT.removed = DRAFT.removed||[];
@@ -488,20 +487,18 @@ function entry(){
 function addMan(){
   const on = roster(DRAFT);
   const avail = CFG.employees.filter(e=>e.active && !on.includes(e.n));
-  const fc = foremanCrew(DRAFT);
-  const foremanAvail = fc && (DRAFT.removed||[]).includes(fc.id) && !on.includes(fc.id);
   $('#dlg-t').textContent = 'Add someone to today\u2019s sheet';
-  $('#dlg-b').innerHTML = (avail.length || foremanAvail)
+  $('#dlg-b').innerHTML = avail.length
     ? `<p class="muted" style="margin:0 0 12px">Anyone active can be added for the day. It doesn\u2019t change their normal crew.</p>
-       <div class="chips">${foremanAvail?`<span class="chip" data-add="${esc(fc.id)}">
-         <b>${esc(fc.id)}</b> ${esc(fc.name)} <small>Foreman</small></span>`:''}${avail.map(e=>`<span class="chip" data-add="${esc(e.n)}">
+       <div class="chips">${avail.map(e=>`<span class="chip" data-add="${esc(e.n)}">
          <b>${esc(e.n)}</b> ${esc(e.name)} <small>${esc(e.crew||'')}</small></span>`).join('')}</div>`
     : `<p class="muted" style="margin:0">Everyone active is already on this sheet.</p>`;
   $('#dlg').showModal();
   $('#dlg-b').querySelectorAll('[data-add]').forEach(el=>el.addEventListener('click', async ()=>{
     const n = el.dataset.add;
     DRAFT.removed = (DRAFT.removed||[]).filter(x=>x!==n);
-    if(!fc || n!==fc.id){ DRAFT.extra = DRAFT.extra||[]; DRAFT.extra.push(n); }
+    const base = myCrew().map(e=>e.n);
+    if(!base.includes(n)){ DRAFT.extra = DRAFT.extra||[]; DRAFT.extra.push(n); }
     await put(K.draft, DRAFT); $('#dlg').close(); entry();
   }));
 }
@@ -537,14 +534,14 @@ function flatten(s){
     for(const [c,v] of Object.entries(row)) if(num(v)){
       const i=codeInfo(c);
       out.push({date:s.date, jobNo:s.jobNo, jobName:j.name, foreman:s.foreman, empNo:en,
-        empName:emp(en,s).name, costCode:c, codeDesc:i.desc, hours:num(v)});
+        empName:emp(en).name, costCode:c, codeDesc:i.desc, hours:num(v)});
     }
   return out;
 }
 async function send(s){
   if(!EP) return false;
   try{ await fetch(EP,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify({action:'sheet', sheet:s, hourRows:flatten(s)})}); return true; }
+    body:JSON.stringify({action:'sheet', sheet:{...s, dayOfWeek:dayOfWeek(s.date)}, hourRows:flatten(s)})}); return true; }
   catch(e){ return false; }
 }
 async function flushQueue(){
@@ -561,31 +558,52 @@ async function syncConfig(){
     if(!d || !d.ok || !d.config) return;
     const c = d.config;
     if(!c.jobs || !c.employees) return;
-    c.pin = CFG.pin; c.crews = c.crews && c.crews.length ? c.crews : CFG.crews;
+    c.pin = CFG.pin;
+    if(c.crews && c.crews.length){
+      c.crews = c.crews.map(nc=>{
+        const old = CFG.crews.find(oc=>oc.id===nc.id);
+        const merged = {...nc};
+        if(old && old.pin && !nc.pin) merged.pin = old.pin;
+        if(old && old.foremanId && !nc.foremanId) merged.foremanId = old.foremanId;
+        return merged;
+      });
+    } else {
+      c.crews = CFG.crews;
+    }
     CFG = c; await put(K.cfg, CFG);
     if(TAB==='setup') setup();
   }catch(e){ /* offline — keep the cached copy */ }
 }
 
+let SUBMITTING=false;
 async function submit(){
+  if(SUBMITTING) return;
   const s=DRAFT;
   if(!s.jobNo||!s.date) return status('Pick a job and a date first','bad');
   if(!s.codes.length)   return status('Pick at least one cost code','bad');
   if(sheetHours(s)===0 && !confirm('No hours entered. Submit anyway?')) return;
   if(SHEETS.some(x=>x.jobNo===s.jobNo&&x.date===s.date&&x.foreman===s.foreman)
      && !confirm(`You already submitted a sheet for job ${s.jobNo} on ${fmtDate(s.date)}. Submit another?`)) return;
+  if(!confirm(`Submit this sheet?\n\n${job(s.jobNo).name}\n${fmtDate(s.date)}\n${sheetHours(s)} labor hours\n\nThis can\u2019t be undone from the app.`)) return;
 
-  s.id='S'+Date.now().toString(36); s.submittedAt=new Date().toISOString();
-  const copy=structuredClone(s);
-  SHEETS.push(copy); SHEETS.sort((a,b)=>b.date.localeCompare(a.date));
-  if(!(await put(K.sheets,SHEETS))){ SHEETS=SHEETS.filter(x=>x.id!==s.id);
-    return status('Could not save on this device — check Settings > Safari > Block All Cookies is off.','bad'); }
-  let sent=false;
-  if(EP){ sent=await send(copy); if(!sent){ QUEUE.push(copy); await put(K.queue,QUEUE); } }
-  DRAFT=blankSheet(); DRAFT.jobNo=copy.jobNo; await put(K.draft,DRAFT);
-  status(EP ? (sent?`Sent to the Google Sheet — ${sheetHours(copy)} hours`:'Saved. Will send when you have signal.')
-            : `Submitted — ${sheetHours(copy)} hours`, sent||!EP?'ok':'');
-  entry();
+  SUBMITTING=true;
+  const btn=$('#btn-save'); if(btn){ btn.disabled=true; btn.textContent='Submitting\u2026'; }
+  try{
+    s.id='S'+Date.now().toString(36); s.submittedAt=new Date().toISOString();
+    const copy=structuredClone(s);
+    SHEETS.push(copy); SHEETS.sort((a,b)=>b.date.localeCompare(a.date));
+    if(!(await put(K.sheets,SHEETS))){ SHEETS=SHEETS.filter(x=>x.id!==s.id);
+      return status('Could not save on this device — check Settings > Safari > Block All Cookies is off.','bad'); }
+    let sent=false;
+    if(EP){ sent=await send(copy); if(!sent){ QUEUE.push(copy); await put(K.queue,QUEUE); } }
+    DRAFT=blankSheet(); DRAFT.jobNo=copy.jobNo; await put(K.draft,DRAFT);
+    status(EP ? (sent?`Sent to the Google Sheet — ${sheetHours(copy)} hours`:'Saved. Will send when you have signal.')
+              : `Submitted — ${sheetHours(copy)} hours`, sent||!EP?'ok':'');
+    entry();
+  } finally {
+    SUBMITTING=false;
+    const btn2=$('#btn-save'); if(btn2){ btn2.disabled=false; btn2.textContent='Submit sheet'; }
+  }
 }
 
 /* ==========================================================================
@@ -652,8 +670,8 @@ function dash(){
   <section class="card"><div class="head"><h2>Hours by man</h2>
     <span class="right muted" style="font-size:12px">for the filtered range</span></div>
     ${Object.keys(byMan).length?`<table class="list"><tbody>${Object.entries(byMan).sort((a,b)=>b[1]-a[1])
-      .map(([n,h])=>{const fc=crewOf(n); return `<tr><td class="n" style="width:56px"><b>${esc(n)}</b></td><td>${esc(fc&&!fc.office?fc.name:emp(n).name)}</td>
-      <td class="n" style="text-align:right"><b>${h}</b></td></tr>`;}).join('')}</tbody></table>`
+      .map(([n,h])=>`<tr><td class="n" style="width:56px"><b>${esc(n)}</b></td><td>${esc(emp(n).name)}</td>
+      <td class="n" style="text-align:right"><b>${h}</b></td></tr>`).join('')}</tbody></table>`
       :`<div class="empty">Nothing logged.</div>`}</section>`;
 
   $('#d-job').addEventListener('change',e=>{F.jobNo=e.target.value;dash();});
@@ -681,7 +699,7 @@ function openSheet(id){
     <p style="margin:0 0 12px" class="muted">${esc(j.name)} · ${esc(s.foreman)}${s.weather?' · '+esc(s.weather):''}</p>
     <div class="scroll"><table class="mx"><thead><tr><th class="stick"><div class="who"><span class="lbl">Employee</span></div></th>
       ${codes.map(c=>`<th>${esc(c)}</th>`).join('')}<th class="tot">Total</th></tr></thead><tbody>
-      ${crew.map(([en,row])=>`<tr><td class="stick"><div class="who"><b>${esc(en)}</b><span>${esc(emp(en,s).name)}</span></div></td>
+      ${crew.map(([en,row])=>`<tr><td class="stick"><div class="who"><b>${esc(en)}</b><span>${esc(emp(en).name)}</span></div></td>
         ${codes.map(c=>`<td style="padding:9px">${row[c]?esc(row[c]):''}</td>`).join('')}
         <td class="tot">${r2(codes.reduce((a,c)=>a+num(row[c]),0))}</td></tr>`).join('')}</tbody></table></div>
     ${(s.equipment||[]).length?`<h3 class="lbl" style="margin:16px 0 7px">Equipment</h3><div class="chips">
@@ -743,8 +761,9 @@ function setup(){
     <div class="head"><h2>Crews</h2><span class="right muted" style="font-size:12px">${activeEmp.length} active</span></div>
     <div class="body">
       ${CFG.crews.map(c=>`<h3 class="lbl" style="margin:0 0 8px">${esc(c.name)} — ${byCrew[c.key].length}</h3>
-        <div class="chips" style="margin-bottom:16px">${byCrew[c.key].map(e=>
-          `<span class="chip flat"><b>${esc(e.n)}</b> ${esc(e.name)}</span>`).join('') || '<span class="muted">Nobody assigned.</span>'}</div>`).join('')}
+        <div class="chips" style="margin-bottom:9px">${byCrew[c.key].map(e=>
+          `<span class="chip flat"><b>${esc(e.n)}</b> ${esc(e.name)}</span>`).join('') || '<span class="muted">Nobody assigned.</span>'}</div>
+        ${c.office?'':`<button class="mini" data-crewpin="${esc(c.id)}" style="margin-bottom:16px">Change ${esc(c.name)}\u2019s PIN</button>`}`).join('')}
       ${orphan.length?`<h3 class="lbl" style="margin:0 0 8px">Not on a field crew</h3><div class="chips">
         ${orphan.map(e=>`<span class="chip flat"><b>${esc(e.n)}</b> ${esc(e.name)} <small>${esc(e.crew||'—')}</small></span>`).join('')}</div>`:''}
     </div>
@@ -787,6 +806,11 @@ function setup(){
     const p=prompt('New office PIN',CFG.pin); if(!p) return;
     CFG.pin=p.trim(); await put(K.cfg,CFG); alert('PIN updated.');
   });
+  document.querySelectorAll('[data-crewpin]').forEach(el=>el.addEventListener('click', async ()=>{
+    const c = crewOf(el.dataset.crewpin);
+    const p = prompt(`New PIN for ${c.name}`, c.pin||''); if(!p) return;
+    c.pin = p.trim(); await put(K.cfg,CFG); alert('PIN updated.');
+  }));
   $('#d-out').addEventListener('click',()=>{
     const b=new Blob([JSON.stringify({config:CFG,sheets:SHEETS},null,2)],{type:'application/json'});
     const a=document.createElement('a'); a.href=URL.createObjectURL(b);
