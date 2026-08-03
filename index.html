@@ -235,11 +235,12 @@ const SEED = {
     'Ford F550','Ford F450','Ford F350','Ford F250 Diesel','Ford F150 (2016)','Ford F150 (2015)',
     'Ford F750 Dump','Ford F750 Flatbed','Chevy Silverado','Ramex'].map(name => ({name, active:true})),
   crews: [
-    {id:'rob',   name:'Rob',            key:'Rob',   pin:'1111', foremanId:'78'},
-    {id:'chris', name:'Chris',          key:'Chris', pin:'2222', foremanId:'77'},
+    {id:'rob',   name:'Rob',            key:'Rob',   pin:'2222', foremanId:'78'},
+    {id:'chris', name:'Chris',          key:'Chris', pin:'1111', foremanId:'77'},
     {id:'labor', name:'Labor for Hire', key:'Labor', office:true}
   ],
-  pin: '2468'
+  pin: '7464',
+  pinVersion: 2
 };
 
 let CFG=null, SHEETS=[], DRAFT=null, QUEUE=[], ME=null, EP='https://script.google.com/macros/s/AKfycbwvzMYb1a1xwEw0VyzBVvpkmMh2rx-o6fx5TdKfR-OZ1r9KOjn03DpPcU8K3yILOube/exec', TAB='entry';
@@ -287,6 +288,14 @@ function blankSheet(){
    ========================================================================== */
 (async function(){
   CFG = await load(K.cfg, null); if(!CFG) { CFG = structuredClone(SEED); await put(K.cfg, CFG); }
+  if(!CFG.pinVersion || CFG.pinVersion < SEED.pinVersion){
+    CFG.pin = SEED.pin; CFG.pinVersion = SEED.pinVersion;
+    CFG.crews = CFG.crews.map(c=>{
+      const s = SEED.crews.find(x=>x.id===c.id);
+      return s ? {...c, pin: s.pin} : c;
+    });
+    await put(K.cfg, CFG);
+  }
   SHEETS = await load(K.sheets, []); QUEUE = await load(K.queue, []);
   ME = await load(K.me, null);
   DRAFT = await load(K.draft, null);
@@ -559,6 +568,7 @@ async function syncConfig(){
     const c = d.config;
     if(!c.jobs || !c.employees) return;
     c.pin = CFG.pin;
+    c.pinVersion = CFG.pinVersion;
     if(c.crews && c.crews.length){
       c.crews = c.crews.map(nc=>{
         const old = CFG.crews.find(oc=>oc.id===nc.id);
