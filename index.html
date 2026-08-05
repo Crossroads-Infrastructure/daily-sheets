@@ -235,12 +235,12 @@ const SEED = {
     'Ford F550','Ford F450','Ford F350','Ford F250 Diesel','Ford F150 (2016)','Ford F150 (2015)',
     'Ford F750 Dump','Ford F750 Flatbed','Chevy Silverado','Ramex'].map(name => ({name, active:true})),
   crews: [
-    {id:'rob',   name:'Rob',            key:'Rob',   pin:'2222', foremanId:'78'},
-    {id:'chris', name:'Chris',          key:'Chris', pin:'1111', foremanId:'77'},
+    {id:'rob',   name:'Rob',            key:'Rob',   pin:'2323', foremanId:'78'},
+    {id:'chris', name:'Chris',          key:'Chris', pin:'8072', foremanId:'77'},
     {id:'labor', name:'Labor for Hire', key:'Labor', office:true}
   ],
   pin: '7464',
-  pinVersion: 2
+  pinVersion: 3
 };
 
 let CFG=null, SHEETS=[], DRAFT=null, QUEUE=[], ME=null, EP='https://script.google.com/macros/s/AKfycbwvzMYb1a1xwEw0VyzBVvpkmMh2rx-o6fx5TdKfR-OZ1r9KOjn03DpPcU8K3yILOube/exec', TAB='entry';
@@ -292,7 +292,7 @@ function blankSheet(){
     CFG.pin = SEED.pin; CFG.pinVersion = SEED.pinVersion;
     CFG.crews = CFG.crews.map(c=>{
       const s = SEED.crews.find(x=>x.id===c.id);
-      return s ? {...c, pin: s.pin} : c;
+      return s ? {...c, pin: s.pin, foremanId: s.foremanId} : c;
     });
     await put(K.cfg, CFG);
   }
@@ -442,8 +442,14 @@ function entry(){
   // cost code chips — scoped to the picker so grid inputs never match
   $('#codepick').querySelectorAll('[data-pickcode]').forEach(el=>el.addEventListener('click', async ()=>{
     const c=el.dataset.pickcode, i=DRAFT.codes.indexOf(c);
-    if(i<0) DRAFT.codes.push(c);
-    else { DRAFT.codes.splice(i,1); for(const r of Object.values(DRAFT.hours)) delete r[c]; }
+    if(i<0){
+      DRAFT.codes.push(c);
+      if(!DRAFT.quantities.some(q=>q.code===c)) DRAFT.quantities.push({code:c, qty:''});
+    } else {
+      DRAFT.codes.splice(i,1);
+      for(const r of Object.values(DRAFT.hours)) delete r[c];
+      DRAFT.quantities = DRAFT.quantities.filter(q=>!(q.code===c && q.qty===''));
+    }
     await put(K.draft, DRAFT); entry();
   }));
 
